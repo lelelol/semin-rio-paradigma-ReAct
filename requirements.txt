@@ -1,0 +1,9 @@
+fastapi==0.115.6
+uvicorn[standard]==0.32.1
+websockets==14.2
+langchain>=0.3.14
+langchain-ollama>=0.3.0
+langgraph>=0.2.60
+pydantic>=2.10.0
+nats-py>=2.9.0
+httpx>=0.28.0

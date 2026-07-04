@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ollama Dashboard — Painel de Controle</title>
+    <meta name="description" content="Dashboard moderna para gerenciar modelos Ollama localmente">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="style.css?v=3">
+</head>
+
+<body>
+    <!-- Background animated particles -->
+    <div class="bg-particles" id="bgParticles"></div>
+
+
+
+    <!-- Main Content -->
+    <main class="main-content" id="mainContent">
+        <!-- Cyber Defense Section -->
+        <section class="section active" id="section-cyber">
+            <div class="section-header">
+                <h1>Cyber Defense</h1>
+                <p class="section-subtitle">Resposta Autônoma a Incidentes com Agente ReAct + LLM</p>
+            </div>
+
+            <!-- Feature Cards (from screenshot) -->
+
+
+            <!-- Simulation Controls -->
+            <div class="card cyber-controls-card">
+                <div class="card-header">
+                    <h2>Controle da Simulação</h2>
+                    <div class="cyber-ws-status" id="cyberWsStatus">
+                        <div class="status-dot"></div>
+                        <span>Desconectado</span>
+                    </div>
+                </div>
+                <div class="cyber-controls">
+                    <div class="control-group">
+                        <label for="scenarioSelect">Cenário de Ataque</label>
+                        <select id="scenarioSelect" class="input-field">
+                            <option value="mixed">Ameaças Mistas</option>
+                            <option value="port_scan">Port Scanning</option>
+                            <option value="brute_force">SSH Brute-Force</option>
+                            <option value="botnet">Botnet / C2</option>
+                        </select>
+                    </div>
+                    <div class="control-group">
+                        <label for="intervalInput">Intervalo (seg)</label>
+                        <input type="number" id="intervalInput" class="input-field" value="8" min="3" max="30" step="1">
+                    </div>
+                    <button class="btn btn-primary" id="startSimBtn" onclick="toggleSimulation()">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2">
+                            <polygon points="5 3 19 12 5 21 5 3" />
+                        </svg>
+                        Iniciar Simulação
+                    </button>
+                    <button class="btn btn-ghost" id="manualAlertBtn" onclick="sendManualAlert()">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2">
+                            <path
+                                d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+                            <line x1="12" y1="9" x2="12" y2="13" />
+                            <line x1="12" y1="17" x2="12.01" y2="17" />
+                        </svg>
+                        Alerta Manual
+                    </button>
+                </div>
+                <!-- Stats bar -->
+                <div class="cyber-stats-bar">
+                    <div class="cyber-stat">
+                        <span class="cyber-stat-value" id="cyberAlertsTotal">0</span>
+                        <span class="cyber-stat-label">Alertas</span>
+                    </div>
+                    <div class="cyber-stat">
+                        <span class="cyber-stat-value" id="cyberActionsTotal">0</span>
+                        <span class="cyber-stat-label">Ações</span>
+                    </div>
+                    <div class="cyber-stat">
+                        <span class="cyber-stat-value" id="cyberIpsBlocked">0</span>
+                        <span class="cyber-stat-label">IPs Bloqueados</span>
+                    </div>
+                    <div class="cyber-stat">
+                        <span class="cyber-stat-value" id="cyberReasoningSteps">0</span>
+                        <span class="cyber-stat-label">Raciocínios</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Main content: Alert Feed + Agent Console -->
+            <div class="cyber-main-grid">
+                <!-- Alert Feed -->
+                <div class="card cyber-feed-card">
+                    <div class="card-header">
+                        <h2>
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2" style="margin-right:8px;vertical-align:middle;">
+                                <path
+                                    d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+                                <line x1="12" y1="9" x2="12" y2="13" />
+                                <line x1="12" y1="17" x2="12.01" y2="17" />
+                            </svg>
+                            Feed de Alertas (Wazuh / Suricata)
+                        </h2>
+                    </div>
+                    <div class="cyber-alert-feed" id="cyberAlertFeed">
+                        <div class="empty-state">
+                            <p>Nenhum alerta recebido. Inicie a simulação ou envie um alerta manual.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ReAct Agent Console -->
+                <div class="card cyber-console-card">
+                    <div class="card-header">
+                        <h2>
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2" style="margin-right:8px;vertical-align:middle;">
+                                <polyline points="4 17 10 11 4 5" />
+                                <line x1="12" y1="19" x2="20" y2="19" />
+                            </svg>
+                            Console do Agente ReAct
+                        </h2>
+                        <span class="agent-model-badge" id="agentModelBadge">—</span>
+                    </div>
+                    <div class="cyber-console" id="cyberConsole">
+                        <div class="console-line system">
+                            <span class="console-prefix">[SYSTEM]</span>
+                            <span>ReAct Agent v1.0 — Aguardando alertas...</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Firewall Rules -->
+            <div class="card">
+                <div class="card-header">
+                    <h2>
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2" style="margin-right:8px;vertical-align:middle;">
+                            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                        </svg>
+                        Regras de Firewall (UFW)
+                    </h2>
+                </div>
+                <div id="firewallRulesContainer">
+                    <div class="empty-state">
+                        <p>Nenhuma regra aplicada ainda.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Toast notifications -->
+    <div class="toast-container" id="toastContainer"></div>
+
+    <script src="app.js?v=3"></script>
+</body>
+
+</html>
