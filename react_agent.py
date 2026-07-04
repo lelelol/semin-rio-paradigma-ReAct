@@ -102,28 +102,42 @@ def _fuzzy_parse(text: str, expect_next: bool = False) -> dict:
         "next": "END"
     }
     
-    thought_match = re.search(r"Thought:\s*(.*?)(?=\n(?:Action|Next):|$)", text, re.IGNORECASE | re.DOTALL)
+    logger.info(f"Fuzzy parsing text:\n{text}")
+    
+    thought_match = re.search(r"(?:\*+)?Thought(?:\*+)?:\s*(.*?)(?=\n(?:\*+)?(?:Action|Next)(?:\*+)?:|$)", text, re.IGNORECASE | re.DOTALL)
     if thought_match:
         result["thought"] = thought_match.group(1).strip()
+    else:
+        fallback_match = re.search(r"(.*?)(?=\n(?:\*+)?(?:Action|Next)(?:\*+)?:|$)", text, re.IGNORECASE | re.DOTALL)
+        if fallback_match and fallback_match.group(1).strip():
+            result["thought"] = fallback_match.group(1).strip()
+        else:
+            result["thought"] = text.strip() or "No reasoning provided."
         
-    action_match = re.search(r"Action:\s*([a-zA-Z0-9_]+)", text, re.IGNORECASE)
+    action_match = re.search(r"(?:\*+)?Action(?:\*+)?:\s*([a-zA-Z0-9_]+)", text, re.IGNORECASE)
     if action_match:
-        result["action"] = action_match.group(1).strip()
+        extracted = action_match.group(1).strip().lower()
+        if extracted in ["analyze_traffic", "check_vulnerability", "execute_ufw", "isolate_host", "finish"]:
+            result["action"] = extracted
+        else:
+            result["action"] = "finish"
         
-    input_match = re.search(r"Action\s*Input:\s*({.*})", text, re.IGNORECASE | re.DOTALL)
+    input_match = re.search(r"(?:\*+)?Action\s*Input(?:\*+)?:\s*({.*})", text, re.IGNORECASE | re.DOTALL)
     if input_match:
         try:
-            result["action_input"] = json.loads(input_match.group(1).strip())
+            raw_input = json.loads(input_match.group(1).strip())
+            result["action_input"] = {k.lower(): v for k, v in raw_input.items()}
         except:
             # Fallback simple parsing
             pairs = re.findall(r'["\']?(\w+)["\']?\s*[:=]\s*["\']?([^"\'}\s,]+)["\']?', input_match.group(1))
             for k, v in pairs:
+                k_lower = k.lower()
                 try:
-                    result["action_input"][k] = int(v)
+                    result["action_input"][k_lower] = int(v)
                 except:
-                    result["action_input"][k] = v
+                    result["action_input"][k_lower] = v
 
-    next_match = re.search(r"Next:\s*([a-zA-Z]+)", text, re.IGNORECASE)
+    next_match = re.search(r"(?:\*+)?Next(?:\*+)?:\s*([a-zA-Z]+)", text, re.IGNORECASE)
     if next_match:
         result["next"] = next_match.group(1).strip().upper()
         
@@ -149,7 +163,7 @@ class MultiAgentSystem:
             model=model_name,
             base_url=base_url,
             temperature=temperature,
-            num_predict=512,
+            num_predict=2048,
         )
 
         self.stats = {
@@ -223,6 +237,7 @@ class MultiAgentSystem:
         
         try:
             response = self.llm.invoke([HumanMessage(content=prompt)])
+            logger.info(f"TRIAGE LLM OUTPUT:\n{response.content}")
             parsed = _fuzzy_parse(response.content)
             next_agent = parsed.get("next", "MITIGATION") # default to mitigation on fail
             if next_agent not in ["MITIGATION", "ANALYST", "END"]:
@@ -277,8 +292,20 @@ class MultiAgentSystem:
         thought = parsed.get("thought", "")
         next_agent = parsed.get("next", "MITIGATION")
         
+        action_input = parsed.get("action_input", {})
         if action and action.lower() != "finish":
-            await self._execute_tool_wrapper(action, parsed.get("action_input", {}), "ANALYST", state, thought, step_num)
+            # Prevent duplicate actions (loop breaking)
+            is_duplicate = any(
+                s.get("action") == action and s.get("action_input") == action_input
+                for s in state["steps"]
+            )
+            if is_duplicate:
+                action = "finish"
+                thought = "Action already executed. Preventing loop."
+                next_agent = "END"
+                
+        if action and action.lower() != "finish":
+            await self._execute_tool_wrapper(action, action_input, "ANALYST", state, thought, step_num)
             state["next_agent"] = "ANALYST" # Loop back for more analysis
         else:
             await self._emit("reasoning_step", {
@@ -318,8 +345,19 @@ class MultiAgentSystem:
         action = parsed.get("action", "finish")
         thought = parsed.get("thought", "")
         
+        action_input = parsed.get("action_input", {})
         if action and action.lower() != "finish":
-            await self._execute_tool_wrapper(action, parsed.get("action_input", {}), "MITIGATION", state, thought, step_num)
+            # Prevent duplicate actions (loop breaking)
+            is_duplicate = any(
+                s.get("action") == action and s.get("action_input") == action_input
+                for s in state["steps"]
+            )
+            if is_duplicate:
+                action = "finish"
+                thought = "Action already executed. Preventing loop."
+                
+        if action and action.lower() != "finish":
+            await self._execute_tool_wrapper(action, action_input, "MITIGATION", state, thought, step_num)
             state["next_agent"] = "MITIGATION" # Loop back
         else:
             await self._emit("reasoning_step", {

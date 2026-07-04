@@ -146,6 +146,12 @@ async def detect_ollama_model() -> str:
             data = resp.json()
             models = data.get("models", [])
 
+            # Prioritize 14b if available
+            for m in models:
+                if "14b" in m.get("name", ""):
+                    logger.info(f"Selected Ollama model: {m.get('name')}")
+                    return m.get("name")
+
             # Prefer instruction-tuned / chat models, skip embedding models
             for m in models:
                 name = m.get("name", "")
