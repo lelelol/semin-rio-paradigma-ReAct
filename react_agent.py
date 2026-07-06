@@ -318,7 +318,7 @@ class MultiAgentSystem:
             })
             state["next_agent"] = next_agent if next_agent in ["MITIGATION", "END"] else "END"
 
-        state["steps"].append({"agent": "ANALYST", "thought": thought, "action": action})
+        state["steps"].append({"agent": "ANALYST", "thought": thought, "action": action, "action_input": action_input})
         return state
 
     async def mitigation_node(self, state: AgentState) -> AgentState:
@@ -371,7 +371,7 @@ class MultiAgentSystem:
             state["next_agent"] = "END"
             state["final_status"] = "mitigated"
             
-        state["steps"].append({"agent": "MITIGATION", "thought": thought, "action": action})
+        state["steps"].append({"agent": "MITIGATION", "thought": thought, "action": action, "action_input": action_input})
         return state
 
     async def _execute_tool_wrapper(self, action: str, action_input: dict, agent_name: str, state: AgentState, thought: str, step_num: int):

@@ -146,9 +146,9 @@ async def detect_ollama_model() -> str:
             data = resp.json()
             models = data.get("models", [])
 
-            # Prioritize 14b if available
+            # Prioritize llama3.1 if available
             for m in models:
-                if "14b" in m.get("name", ""):
+                if "llama3.1" in m.get("name", ""):
                     logger.info(f"Selected Ollama model: {m.get('name')}")
                     return m.get("name")
 
@@ -167,7 +167,7 @@ async def detect_ollama_model() -> str:
     except Exception as e:
         logger.warning(f"Could not detect Ollama models: {e}")
 
-    return "hf.co/bartowski/Qwen2.5-0.5B-Instruct-GGUF:Q4_K_M"
+    return "llama3.1:latest"
 
 
 # ─── FastAPI App ───────────────────────────────────────────
